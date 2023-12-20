@@ -136,7 +136,6 @@
   <ItemGroup>
     <ClInclude Include="PSDObject.h" />
     <ClInclude Include="PSDLoader.h" />
-    <ClInclude Include="SivPSD.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
@@ -145,7 +144,7 @@
     <Content Include="s3d_switch.py" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\s3d-exp\psd_sdk\build\VS2019\Psd.vcxproj">
+    <ProjectReference Include="..\psd_sdk\build\VS2022\Psd.vcxproj">
       <Project>{76afa79c-7fe1-493a-b920-52ee72278884}</Project>
     </ProjectReference>
   </ItemGroup>

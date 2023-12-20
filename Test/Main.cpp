@@ -1,5 +1,5 @@
 ﻿# include <Siv3D.hpp> // Siv3D v0.6.12
-# include "../SivPSD/SivPSD.h"
+# include "../SivPSD/PSDLoader.h"
 
 using namespace SivPSD;
 

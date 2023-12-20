@@ -144,7 +144,7 @@
     <ClCompile Include="PSDObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PsdReader.cpp">
+    <ClCompile Include="PSDLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -165,13 +165,10 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SivPSD.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PSDObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PsdReader.h">
+    <ClInclude Include="PSDLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

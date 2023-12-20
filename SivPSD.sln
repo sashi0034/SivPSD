@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SivPSD", "SivPSD\SivPSD.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxproj", "{44EBBD75-ED7F-45DB-84C3-224D37961DAF}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Psd", "..\s3d-exp\psd_sdk\build\VS2019\Psd.vcxproj", "{76AFA79C-7FE1-493A-B920-52EE72278884}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Psd", "psd_sdk\build\VS2022\Psd.vcxproj", "{76AFA79C-7FE1-493A-B920-52EE72278884}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
