@@ -1,0 +1,3 @@
+[submodule "psd_sdk"]
+	path = psd_sdk
+	url = https://github.com/MolecularMatters/psd_sdk
