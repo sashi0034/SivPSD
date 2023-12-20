@@ -15,7 +15,8 @@ void Main()
 	PSDReader psdReader{
 		{
 			.filepath = U"psd/miko15.psd",
-			.storeTarget = StoreTarget::Texture
+			.storeTarget = StoreTarget::Texture,
+			.maxThread = 4
 		}
 	};
 	auto psdObject = psdReader.getObject();

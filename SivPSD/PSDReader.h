@@ -15,8 +15,9 @@ namespace SivPSD
 	public:
 		struct Config
 		{
-			FilePath filepath;
+			FilePath filepath{};
 			StoreTarget storeTarget = StoreTarget::Texture;
+			int maxThread = 1;
 		};
 
 		PSDReader();

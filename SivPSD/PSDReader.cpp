@@ -49,30 +49,6 @@ namespace
 			canvasSize.x, canvasSize.y);
 	}
 
-	void applyMask(Rect maskRect, Size imageSize, const uint8_t* mask, uint8_t* dest)
-	{
-		// 一応使えるけど没
-		for (int32 y = 0u; y < imageSize.y; ++y)
-		{
-			for (int32 x = 0u; x < imageSize.x; ++x)
-			{
-				const Point maskPoint = Point(x, y) - maskRect.tl();
-				const int destIndex = (y * imageSize.x + x) * 4u + 3u;
-
-				if (InRange(maskPoint.x, 0, maskRect.w - 1)
-					&& InRange(maskPoint.y, 0, maskRect.h - 1))
-				{
-					const double maskRate = mask[maskPoint.y * maskRect.w + maskPoint.x] / 255.0;
-					dest[destIndex] = static_cast<uint8>(dest[destIndex] * maskRate);
-				}
-				else
-				{
-					dest[destIndex] = 0;
-				}
-			}
-		}
-	}
-
 	PSDError concatError(const Optional<PSDError>& currentError, StringView newError)
 	{
 		return PSDError(currentError.value_or(PSDError()).what().isEmpty()
@@ -286,6 +262,36 @@ private:
 		LayerMaskSection* layerMaskSection,
 		const Size& canvasSize)
 	{
+		Array<AsyncTask<void>> tasks{};
+		for (int id = 0; id < m_config.maxThread; ++id)
+		{
+			tasks.emplace_back(Async([this, allocator, file, document, layerMaskSection, canvasSize, id]()
+			{
+				extractLayersPartial(allocator, file, document, layerMaskSection, canvasSize, id);
+			}));
+		}
+		while (true)
+		{
+			System::Sleep(1);
+			if (const bool ok = [&]()
+			{
+				for (auto&& t : tasks) if (not t.isReady()) return false;
+				return true;
+			}())
+			{
+				break;
+			}
+		}
+	}
+
+	void extractLayersPartial(
+		MallocAllocator* allocator,
+		NativeFile* file,
+		Document* document,
+		LayerMaskSection* layerMaskSection,
+		const Size& canvasSize,
+		int threadId)
+	{
 		m_object.layers.resize(layerMaskSection->layerCount);
 		LayerReader layerReader{
 			{
@@ -298,7 +304,7 @@ private:
 			}
 		};
 
-		for (uint32 i = 0; i < layerMaskSection->layerCount; ++i)
+		for (uint32 i = threadId; i < layerMaskSection->layerCount; i += m_config.maxThread)
 		{
 			layerReader.readLayer(i, m_object.layers[i]);
 		}
