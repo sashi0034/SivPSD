@@ -17,7 +17,7 @@ namespace SivPSD
 		{
 			FilePath filepath{};
 			StoreTarget storeTarget = StoreTarget::Texture;
-			int maxThread = 1;
+			int maxThreads = 1;
 		};
 
 		PSDReader();

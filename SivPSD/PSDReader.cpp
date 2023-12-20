@@ -263,11 +263,15 @@ private:
 		const Size& canvasSize)
 	{
 		Array<AsyncTask<void>> tasks{};
-		for (int id = 0; id < m_config.maxThread; ++id)
+		const int layerCount = layerMaskSection->layerCount;
+		m_object.layers.resize(layerCount);
+		std::atomic<int> nextLayers{};
+
+		for (int id = 0; id < std::min(m_config.maxThreads, layerCount); ++id)
 		{
-			tasks.emplace_back(Async([this, allocator, file, document, layerMaskSection, canvasSize, id]()
+			tasks.emplace_back(Async([this, allocator, file, document, layerMaskSection, canvasSize, id, &nextLayers]()
 			{
-				extractLayersPartial(allocator, file, document, layerMaskSection, canvasSize, id);
+				extractLayersPartial(allocator, file, document, layerMaskSection, canvasSize, nextLayers, id);
 			}));
 		}
 		while (true)
@@ -290,9 +294,12 @@ private:
 		Document* document,
 		LayerMaskSection* layerMaskSection,
 		const Size& canvasSize,
+		std::atomic<int>& nextLayer,
 		int threadId)
 	{
-		m_object.layers.resize(layerMaskSection->layerCount);
+		// Stopwatch sw{};
+		// sw.start();
+		// Console.writeln(U"Thread {} start"_fmt(threadId));
 		LayerReader layerReader{
 			{
 				.config = m_config,
@@ -304,10 +311,13 @@ private:
 			}
 		};
 
-		for (uint32 i = threadId; i < layerMaskSection->layerCount; i += m_config.maxThread)
+		while (true)
 		{
-			layerReader.readLayer(i, m_object.layers[i]);
+			const int nextIndex = nextLayer.fetch_add(1);
+			if (nextIndex >= m_object.layers.size()) break;
+			layerReader.readLayer(nextIndex, m_object.layers[nextIndex]);
 		}
+		// Console.writeln(U"Thread {}: {}"_fmt(threadId, sw.sF()));
 	}
 };
 

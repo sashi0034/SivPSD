@@ -16,7 +16,7 @@ void Main()
 		{
 			.filepath = U"psd/miko15.psd",
 			.storeTarget = StoreTarget::Texture,
-			.maxThread = 4
+			.maxThreads = 8
 		}
 	};
 	auto psdObject = psdReader.getObject();
