@@ -16,7 +16,8 @@ void Main()
 		{
 			.filepath = U"psd/miko15.psd",
 			.storeTarget = StoreTarget::Texture,
-			.maxThreads = 8
+			.maxThreads = 4,
+			.loadAsync = true
 		}
 	};
 	auto psdObject = psdReader.getObject();
@@ -35,6 +36,14 @@ void Main()
 
 	while (System::Update())
 	{
+		ClearPrint();
+		if (psdObject.layers.size() == 0)
+		{
+			if (psdReader.isReady()) psdObject = psdReader.getObject();
+			Print(U"Waiting...");
+			continue;
+		}
+
 		camera2D.update();
 		{
 			Transformer2D t{camera2D.createTransformer()};

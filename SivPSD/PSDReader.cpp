@@ -203,8 +203,28 @@ struct PSDReader::Impl
 	Config m_config{};
 	PSDError m_error{};
 	PSDObject m_object{};
+	bool m_ready{};
+	Array<AsyncTask<void>> m_layerTasks{};
+	AsyncTask<void> m_readTask{};
+	std::atomic<int> m_nextLayer{};
 
 	void read()
+	{
+		if (m_config.loadAsync)
+		{
+			m_readTask = Async([this]()
+			{
+				readIntenal();
+			});
+		}
+		else
+		{
+			readIntenal();
+		}
+	}
+
+private:
+	void readIntenal()
 	{
 		const std::wstring srcPath = Unicode::ToWstring(m_config.filepath);
 
@@ -254,7 +274,6 @@ struct PSDReader::Impl
 		file.Close();
 	}
 
-private:
 	void extractLayers(
 		MallocAllocator* allocator,
 		NativeFile* file,
@@ -262,33 +281,25 @@ private:
 		LayerMaskSection* layerMaskSection,
 		const Size& canvasSize)
 	{
-		Array<AsyncTask<void>> tasks{};
 		const int layerCount = layerMaskSection->layerCount;
 		m_object.layers.resize(layerCount);
-		std::atomic<int> nextLayers{};
 
+		// スレッドごとにレイヤー処理
 		for (int id = 0; id < std::min(m_config.maxThreads, layerCount); ++id)
 		{
-			tasks.emplace_back(Async([this, allocator, file, document, layerMaskSection, canvasSize, id, &nextLayers]()
-			{
-				extractLayersPartial(allocator, file, document, layerMaskSection, canvasSize, nextLayers, id);
-			}));
+			m_layerTasks.emplace_back(Async(
+				[this, allocator, file, document, layerMaskSection, canvasSize, id]()
+				{
+					extractLayersAsync(allocator, file, document, layerMaskSection, canvasSize, m_nextLayer, id);
+				}));
 		}
-		while (true)
-		{
-			System::Sleep(1);
-			if (const bool ok = [&]()
-			{
-				for (auto&& t : tasks) if (not t.isReady()) return false;
-				return true;
-			}())
-			{
-				break;
-			}
-		}
+
+		// 終了チェック
+		for (auto&& t : m_layerTasks) t.wait();
+		m_ready = true;
 	}
 
-	void extractLayersPartial(
+	void extractLayersAsync(
 		MallocAllocator* allocator,
 		NativeFile* file,
 		Document* document,
@@ -340,8 +351,15 @@ namespace SivPSD
 		return p_impl->m_error;
 	}
 
-	const PSDObject& PSDReader::getObject() const
+	PSDObject PSDReader::getObject() const
 	{
-		return p_impl->m_object;
+		return p_impl->m_ready
+			       ? p_impl->m_object
+			       : PSDObject{};
+	}
+
+	bool PSDReader::isReady() const noexcept
+	{
+		return p_impl->m_ready;
 	}
 }

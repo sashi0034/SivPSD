@@ -18,6 +18,7 @@ namespace SivPSD
 			FilePath filepath{};
 			StoreTarget storeTarget = StoreTarget::Texture;
 			int maxThreads = 1;
+			bool loadAsync = false;
 		};
 
 		PSDReader();
@@ -28,7 +29,10 @@ namespace SivPSD
 		Optional<PSDError> getCriticalError() const;
 
 		[[nodiscard]]
-		const PSDObject& getObject() const;
+		PSDObject getObject() const;
+
+		[[nodiscard]]
+		bool isReady() const noexcept;
 
 	private:
 		struct Impl;
