@@ -8,6 +8,26 @@ namespace SivPSD
 		return U"PSDError"_sv;
 	}
 
+	void Formatter(FormatData& formatData, const PSDLayer& layer)
+	{
+		const auto layerFolder = layer.isFolder ? U"Folder"_sv : U"Layer"_sv;
+		if (layer.parentId.has_value())
+		{
+			formatData.string += U"({} {}->{}){}"_fmt(
+				layerFolder,
+				layer.id,
+				layer.parentId.value(),
+				layer.name);
+		}
+		else
+		{
+			formatData.string += U"({} {}){}"_fmt(
+				layerFolder,
+				layer.id,
+				layer.name);
+		}
+	}
+
 	const PSDObject& PSDObject::draw(const Vec2& pos) const
 	{
 		for (auto&& layer : layers)

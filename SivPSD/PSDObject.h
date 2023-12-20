@@ -39,6 +39,8 @@ namespace SivPSD
 
 		/// @brief 読み込み時などで発生したエラー
 		Optional<PSDError> error{};
+
+		friend void Formatter(FormatData& formatData, const PSDLayer& layer);
 	};
 
 	/// @brief PSDオブジェクト情報

@@ -27,6 +27,11 @@ void Main()
 
 	Camera2D camera2D{psdObject.documentSize / 2};
 
+	for (auto&& o : psdObject.layers)
+	{
+		Console.writeln(Format(o));
+	}
+
 	while (System::Update())
 	{
 		camera2D.update();
