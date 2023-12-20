@@ -118,7 +118,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="PSDObject.cpp" />
-    <ClCompile Include="PSDReader.cpp" />
+    <ClCompile Include="PSDLoader.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -135,7 +135,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PSDObject.h" />
-    <ClInclude Include="PSDReader.h" />
+    <ClInclude Include="PSDLoader.h" />
     <ClInclude Include="SivPSD.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

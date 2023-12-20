@@ -12,7 +12,7 @@ void Main()
 
 	Stopwatch sw{};
 	sw.start();
-	PSDReader psdReader{
+	PSDLoader psdLoader{
 		{
 			.filepath = U"psd/miko15.psd",
 			.storeTarget = StoreTarget::Texture,
@@ -20,7 +20,7 @@ void Main()
 			.loadAsync = true
 		}
 	};
-	auto psdObject = psdReader.getObject();
+	auto psdObject = psdLoader.getObject();
 	sw.pause();
 	Console.writeln(U"Passed: {}"_fmt(sw.sF()));
 
@@ -39,7 +39,7 @@ void Main()
 		ClearPrint();
 		if (psdObject.layers.size() == 0)
 		{
-			if (psdReader.isReady()) psdObject = psdReader.getObject();
+			if (psdLoader.isReady()) psdObject = psdLoader.getObject();
 			Print(U"Waiting...");
 			continue;
 		}

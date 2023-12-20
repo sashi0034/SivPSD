@@ -10,7 +10,7 @@ namespace SivPSD
 		ImageAndTexture,
 	};
 
-	class PSDReader
+	class PSDLoader
 	{
 	public:
 		struct Config
@@ -21,8 +21,8 @@ namespace SivPSD
 			bool loadAsync = false;
 		};
 
-		PSDReader();
-		explicit PSDReader(const Config& config = {});
+		PSDLoader();
+		explicit PSDLoader(const Config& config = {});
 
 		/// @brief ファイル読み込み時などで発生したエラー (レイヤー単体にはエラーが含まれている可能性があります)
 		[[nodiscard]]

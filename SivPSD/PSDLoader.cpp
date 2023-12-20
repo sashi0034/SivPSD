@@ -1,5 +1,5 @@
 ﻿#include "stdafx.h"
-#include "PSDReader.h"
+#include "PSDLoader.h"
 
 #include "Psd/Psd.h"
 #include "Psd/PsdPlatform.h"
@@ -69,12 +69,13 @@ namespace
 		return none;
 	}
 
-	class LayerReader
+	// スレッドごとに作成
+	class LayerLoader
 	{
 	public:
 		struct Props
 		{
-			PSDReader::Config config;
+			PSDLoader::Config config;
 			MallocAllocator* allocator;
 			NativeFile* file;
 			Document* document;
@@ -82,7 +83,7 @@ namespace
 			Size canvasSize;
 		};
 
-		LayerReader(Props props) : props(std::move(props))
+		LayerLoader(Props props) : props(std::move(props))
 		{
 			m_canvasData.fill(Array<uint8>(props.canvasSize.x * props.canvasSize.y));
 			m_colorArray = Array<Color>{props.document->width * props.document->height};
@@ -97,7 +98,7 @@ namespace
 		Array<Color> m_colorArray{};
 	};
 
-	void LayerReader::readLayer(int index, PSDLayer& outputLayer)
+	void LayerLoader::readLayer(int index, PSDLayer& outputLayer)
 	{
 		Layer* layer = &props.layerMaskSection->layers[index];
 		ExtractLayer(props.document, props.file, props.allocator, layer);
@@ -198,33 +199,33 @@ namespace
 	}
 }
 
-struct PSDReader::Impl
+struct PSDLoader::Impl
 {
 	Config m_config{};
 	PSDError m_error{};
 	PSDObject m_object{};
 	bool m_ready{};
 	Array<AsyncTask<void>> m_layerTasks{};
-	AsyncTask<void> m_readTask{};
+	AsyncTask<void> m_loadTask{};
 	std::atomic<int> m_nextLayer{};
 
-	void read()
+	void load()
 	{
 		if (m_config.loadAsync)
 		{
-			m_readTask = Async([this]()
+			m_loadTask = Async([this]()
 			{
-				readIntenal();
+				loadIntenal();
 			});
 		}
 		else
 		{
-			readIntenal();
+			loadIntenal();
 		}
 	}
 
 private:
-	void readIntenal()
+	void loadIntenal()
 	{
 		const std::wstring srcPath = Unicode::ToWstring(m_config.filepath);
 
@@ -311,7 +312,7 @@ private:
 		// Stopwatch sw{};
 		// sw.start();
 		// Console.writeln(U"Thread {} start"_fmt(threadId));
-		LayerReader layerReader{
+		LayerLoader layerReader{
 			{
 				.config = m_config,
 				.allocator = allocator,
@@ -334,31 +335,31 @@ private:
 
 namespace SivPSD
 {
-	PSDReader::PSDReader() :
+	PSDLoader::PSDLoader() :
 		p_impl(std::make_shared<Impl>())
 	{
 	}
 
-	PSDReader::PSDReader(const Config& config) :
+	PSDLoader::PSDLoader(const Config& config) :
 		p_impl(std::make_shared<Impl>())
 	{
 		p_impl->m_config = config;
-		p_impl->read();
+		p_impl->load();
 	}
 
-	Optional<PSDError> PSDReader::getCriticalError() const
+	Optional<PSDError> PSDLoader::getCriticalError() const
 	{
 		return p_impl->m_error;
 	}
 
-	PSDObject PSDReader::getObject() const
+	PSDObject PSDLoader::getObject() const
 	{
 		return p_impl->m_ready
 			       ? p_impl->m_object
 			       : PSDObject{};
 	}
 
-	bool PSDReader::isReady() const noexcept
+	bool PSDLoader::isReady() const noexcept
 	{
 		return p_impl->m_ready;
 	}
