@@ -22,6 +22,12 @@ namespace SivPSD
 		/// @brief 親レイヤーID
 		Optional<id_type> parentId{};
 
+		/// @brief レイヤー名
+		String name;
+
+		/// @brief フォルダかどうか
+		bool isFolder{};
+
 		/// @brief 表示フラグ
 		bool isVisible{};
 

@@ -25,7 +25,7 @@ namespace
 	using namespace SivPSD;
 	using namespace psd;
 
-	constexpr uint32 CHANNEL_NOT_FOUND = UINT_MAX;
+	constexpr uint32 invalidChannelValue = UINT_MAX;
 
 	uint32 findChannel(const Layer* layer, int16 channelType)
 	{
@@ -36,7 +36,7 @@ namespace
 				return i;
 		}
 
-		return CHANNEL_NOT_FOUND;
+		return invalidChannelValue;
 	}
 
 	void expandChannelToCanvas(
@@ -51,6 +51,7 @@ namespace
 
 	void applyMask(Rect maskRect, Size imageSize, const uint8_t* mask, uint8_t* dest)
 	{
+		// 一応使えるけど没
 		for (int32 y = 0u; y < imageSize.y; ++y)
 		{
 			for (int32 x = 0u; x < imageSize.x; ++x)
@@ -72,6 +73,13 @@ namespace
 		}
 	}
 
+	PSDError concatError(const Optional<PSDError>& currentError, StringView newError)
+	{
+		return PSDError(currentError.value_or(PSDError()).what().isEmpty()
+			                ? newError
+			                : currentError->what() + U"\n"_sv + newError);
+	}
+
 	class LayerReader
 	{
 	public:
@@ -85,7 +93,7 @@ namespace
 			Size canvasSize;
 		};
 
-		LayerReader(const Props& props) : props(props)
+		LayerReader(Props props) : props(std::move(props))
 		{
 			m_canvasData.fill(Array<uint8>(props.canvasSize.x * props.canvasSize.y));
 			m_colorArray = Array<Color>{props.document->width * props.document->height};
@@ -96,40 +104,48 @@ namespace
 			Layer* layer = &props.layerMaskSection->layers[index];
 			ExtractLayer(props.document, props.file, props.allocator, layer);
 
+			// ID情報
+			outputLayer.id = index;
+
+			// 可視情報
 			outputLayer.isVisible = layer->isVisible;
 
-			if (layer->type != layerType::ANY)
+			// フォルダ情報
+			if (layer->type == layerType::OPEN_FOLDER || layer->type == layerType::CLOSED_FOLDER)
 			{
-				Console.writeln(U"Type: {}"_fmt(layer->type));
+				outputLayer.isFolder = true;
+			}
+			else if (layer->type == layerType::SECTION_DIVIDER)
+			{
+				outputLayer.error = PSDError(U"Unsupported layer type.");
+				return;
 			}
 
-			// check availability of R, G, B, and A channels.
-			// we need to determine the indices of channels individually, because there is no guarantee that R is the first channel,
-			// G is the second, B is the third, and so on.
+			// チャンネル取得
 			const uint32 indexR = findChannel(layer, channelType::R);
 			const uint32 indexG = findChannel(layer, channelType::G);
 			const uint32 indexB = findChannel(layer, channelType::B);
 			const uint32 indexA = findChannel(layer, channelType::TRANSPARENCY_MASK);
-			if (indexA == CHANNEL_NOT_FOUND)
+			if ((indexR == invalidChannelValue)
+				|| (indexG == invalidChannelValue)
+				|| (indexB == invalidChannelValue)
+				|| (indexA == invalidChannelValue))
 			{
-				Console.writeln(U"Missing alpha");
+				outputLayer.error = PSDError(U"Invalid RGBA channel.");
 				return;
 			}
 
-			if ((indexR != CHANNEL_NOT_FOUND) && (indexG != CHANNEL_NOT_FOUND) && (indexB != CHANNEL_NOT_FOUND))
-			{
-				// RGB channels were found.
-				expandChannelToCanvas(layer, &layer->channels[indexR], m_canvasData[0], props.canvasSize);
-				expandChannelToCanvas(layer, &layer->channels[indexG], m_canvasData[1], props.canvasSize);
-				expandChannelToCanvas(layer, &layer->channels[indexB], m_canvasData[2], props.canvasSize);
+			// RGB channels were found.
+			expandChannelToCanvas(layer, &layer->channels[indexR], m_canvasData[0], props.canvasSize);
+			expandChannelToCanvas(layer, &layer->channels[indexG], m_canvasData[1], props.canvasSize);
+			expandChannelToCanvas(layer, &layer->channels[indexB], m_canvasData[2], props.canvasSize);
 
-				m_canvasData[3].fill(0);
-				expandChannelToCanvas(layer, &layer->channels[indexA], m_canvasData[3], props.canvasSize);
-			}
+			m_canvasData[3].fill(0);
+			expandChannelToCanvas(layer, &layer->channels[indexA], m_canvasData[3], props.canvasSize);
 
 			if (props.document->bitsPerChannel != 8)
 			{
-				Console.writeln(U"{}-BPC is not supported."_fmt(props.document->bitsPerChannel));
+				outputLayer.error = PSDError(U"{}-bit / channel is not supported."_fmt(props.document->bitsPerChannel));
 				return;
 			}
 
@@ -138,54 +154,48 @@ namespace
 				reinterpret_cast<uint8_t*>(m_colorArray.data()),
 				props.canvasSize.x, props.canvasSize.y);
 
-			// get the layer name.
-			// Unicode data is preferred because it is not truncated by Photoshop, but unfortunately it is optional.
-			// fall back to the ASCII name in case no Unicode name was found.
+			// レイヤー名取得
 			std::wstringstream layerName;
 			if (layer->utf16Name)
 			{
-				//In Windows wchar_t is utf16
-				PSD_STATIC_ASSERT(sizeof(wchar_t) == sizeof(uint16));
+				static_assert(sizeof(wchar_t) == sizeof(uint16)); //In Windows wchar_t is utf16
 				layerName << reinterpret_cast<wchar_t*>(layer->utf16Name);
 			}
 			else
 			{
 				layerName << layer->name.c_str();
 			}
-			// at this point, image8, image16 or image32 store either a 8-bit, 16-bit, or 32-bit image, respectively.
-			// the image data is stored in interleaved RGB or RGBA, and has the size "document->width*document->height".
-			// it is up to you to do whatever you want with the image data. in the sample, we simply write the image to a .TGA file.
-			const String layerNameU32 = (Unicode::FromWstring(layerName.str()));
-			Print(layerNameU32);
+			outputLayer.name = Unicode::FromWstring(layerName.str());
 
-			// RGBA
+			// 配列変換
 			const Grid<Color> colorData{props.document->width, props.document->height, m_colorArray};
-			auto image = Image(colorData);
+			const auto image = Image(colorData);
 
-			// in addition to the layer data, we also want to extract the user and/or vector mask.
-			// luckily, this has been handled already by the ExtractLayer() function. we just need to check whether a mask exists.
 			if (layer->layerMask)
 			{
-				const int32 maskW = layer->layerMask->right - layer->layerMask->left;
-				const int32 maskH = layer->layerMask->bottom - layer->layerMask->top;
-				const Rect maskRect{layer->layerMask->left, layer->layerMask->top, maskW, maskH};
-
-				Print(U"Mask: " + Unicode::FromWstring(layerName.str()));
-				const void* maskData = layer->layerMask->data;
-				applyMask(
-					maskRect,
-					{props.document->width, props.document->height},
-					static_cast<const uint8_t*>(maskData),
-					image.dataAsUint8());
+				outputLayer.error = concatError(outputLayer.error, U"Layer mask is not supported.");
 			}
 
 			if (layer->vectorMask)
 			{
-				Print(U"Vector Mask: " + Unicode::FromWstring(layerName.str()));
-				Console.writeln(U"Vector mask is not supported.");
+				outputLayer.error = concatError(outputLayer.error, U"Vector mask is not supported.");
 			}
 
-			outputLayer.texture = DynamicTexture(image);
+			// 格納
+			switch (props.config.storeTarget)
+			{
+			case StoreTarget::Image:
+				outputLayer.image = image;
+				break;
+			case StoreTarget::Texture:
+				outputLayer.texture = DynamicTexture(image);
+				break;
+			case StoreTarget::ImageAndTexture:
+				outputLayer.image = image;
+				outputLayer.texture = DynamicTexture(image);
+				break;
+			default: ;
+			}
 		}
 
 	private:
@@ -236,25 +246,10 @@ struct PSDReader::Impl
 		canvasData.fill(Array<uint8>(canvasSize.x * canvasSize.y));
 		Array<Color> colorArray{document->width * document->height};
 
-		// Extract all layers and masks.
+		// レイヤー情報抽出
 		if (LayerMaskSection* layerMaskSection = ParseLayerMaskSection(document, &file, &allocator))
 		{
-			m_object.layers.resize(layerMaskSection->layerCount);
-			LayerReader layerReader{
-				{
-					.config = m_config,
-					.allocator = &allocator,
-					.file = &file,
-					.document = document,
-					.layerMaskSection = layerMaskSection,
-					.canvasSize = canvasSize,
-				}
-			};
-
-			for (uint32 i = 0; i < layerMaskSection->layerCount; ++i)
-			{
-				layerReader.readLayer(i, m_object.layers[i]);
-			}
+			extractLayers(&allocator, &file, document, layerMaskSection, canvasSize);
 
 			DestroyLayerMaskSection(layerMaskSection, &allocator);
 		}
@@ -265,6 +260,32 @@ struct PSDReader::Impl
 
 		DestroyDocument(document, &allocator);
 		file.Close();
+	}
+
+private:
+	void extractLayers(
+		MallocAllocator* allocator,
+		NativeFile* file,
+		Document* document,
+		LayerMaskSection* layerMaskSection,
+		const Size& canvasSize)
+	{
+		m_object.layers.resize(layerMaskSection->layerCount);
+		LayerReader layerReader{
+			{
+				.config = m_config,
+				.allocator = allocator,
+				.file = file,
+				.document = document,
+				.layerMaskSection = layerMaskSection,
+				.canvasSize = canvasSize,
+			}
+		};
+
+		for (uint32 i = 0; i < layerMaskSection->layerCount; ++i)
+		{
+			layerReader.readLayer(i, m_object.layers[i]);
+		}
 	}
 };
 
