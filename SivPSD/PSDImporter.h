@@ -24,7 +24,7 @@ namespace SivPSD
 		PSDImporter();
 		explicit PSDImporter(const Config& config = {});
 
-		/// @brief ファイル読み込み時などで発生したエラー (レイヤー単体にはエラーが含まれている可能性があります)
+		/// @brief ファイル読み込み時などで発生したエラー (これが none の場合でもレイヤー単体にはエラーが含まれている可能性があります)
 		[[nodiscard]]
 		Optional<PSDError> getCriticalError() const;
 

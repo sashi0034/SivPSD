@@ -28,13 +28,16 @@ namespace SivPSD
 		}
 	}
 
+	bool PSDLayer::isDrawable() const
+	{
+		return isVisible && not texture.isEmpty() && not isFolder;
+	}
+
 	const PSDObject& PSDObject::draw(const Vec2& pos) const
 	{
 		for (auto&& layer : layers)
 		{
-			if (not layer.isVisible) continue;
-			if (layer.texture.isEmpty()) continue;
-			(void)layer.texture.draw(pos);
+			if (layer.isDrawable()) (void)layer.texture.draw(pos);
 		}
 		return *this;
 	}
@@ -43,9 +46,7 @@ namespace SivPSD
 	{
 		for (auto&& layer : layers)
 		{
-			if (not layer.isVisible) continue;
-			if (layer.texture.isEmpty()) continue;
-			(void)layer.texture.drawAt(pos);
+			if (layer.isDrawable()) (void)layer.texture.drawAt(pos);
 		}
 		return *this;
 	}

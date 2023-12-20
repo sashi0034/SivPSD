@@ -40,6 +40,9 @@ namespace SivPSD
 		/// @brief 読み込み時などで発生したエラー
 		Optional<PSDError> error{};
 
+		/// @brief isVisible が true でテクスチャを持ったレイヤーか
+		bool isDrawable() const;
+
 		friend void Formatter(FormatData& formatData, const PSDLayer& layer);
 	};
 
