@@ -10,7 +10,7 @@ namespace SivPSD
 		ImageAndTexture,
 	};
 
-	class PSDLoader
+	class PSDImporter
 	{
 	public:
 		struct Config
@@ -18,11 +18,11 @@ namespace SivPSD
 			FilePath filepath{};
 			StoreTarget storeTarget = StoreTarget::Texture;
 			int maxThreads = 1;
-			bool loadAsync = false;
+			bool importAsync = false;
 		};
 
-		PSDLoader();
-		explicit PSDLoader(const Config& config = {});
+		PSDImporter();
+		explicit PSDImporter(const Config& config = {});
 
 		/// @brief ファイル読み込み時などで発生したエラー (レイヤー単体にはエラーが含まれている可能性があります)
 		[[nodiscard]]

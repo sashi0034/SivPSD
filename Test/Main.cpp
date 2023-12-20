@@ -1,5 +1,5 @@
 ﻿# include <Siv3D.hpp> // Siv3D v0.6.12
-# include "../SivPSD/PSDLoader.h"
+# include "../SivPSD/PSDImporter.h"
 
 using namespace SivPSD;
 
@@ -12,15 +12,15 @@ void Main()
 
 	Stopwatch sw{};
 	sw.start();
-	PSDLoader psdLoader{
+	PSDImporter psdImporter{
 		{
 			.filepath = U"psd/miko15.psd",
 			.storeTarget = StoreTarget::Texture,
 			.maxThreads = 4,
-			.loadAsync = true
+			.importAsync = true
 		}
 	};
-	auto psdObject = psdLoader.getObject();
+	auto psdObject = psdImporter.getObject();
 	sw.pause();
 	Console.writeln(U"Passed: {}"_fmt(sw.sF()));
 
@@ -39,7 +39,7 @@ void Main()
 		ClearPrint();
 		if (psdObject.layers.size() == 0)
 		{
-			if (psdLoader.isReady()) psdObject = psdLoader.getObject();
+			if (psdImporter.isReady()) psdObject = psdImporter.getObject();
 			Print(U"Waiting...");
 			continue;
 		}

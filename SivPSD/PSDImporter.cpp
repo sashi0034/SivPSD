@@ -1,5 +1,5 @@
 ﻿#include "stdafx.h"
-#include "PSDLoader.h"
+#include "PSDImporter.h"
 
 #include "Psd/Psd.h"
 #include "Psd/PsdPlatform.h"
@@ -70,12 +70,12 @@ namespace
 	}
 
 	// スレッドごとに作成
-	class LayerLoader
+	class LayerImporter
 	{
 	public:
 		struct Props
 		{
-			PSDLoader::Config config;
+			PSDImporter::Config config;
 			MallocAllocator* allocator;
 			NativeFile* file;
 			Document* document;
@@ -83,7 +83,7 @@ namespace
 			Size canvasSize;
 		};
 
-		LayerLoader(Props props) : props(std::move(props))
+		LayerImporter(Props props) : props(std::move(props))
 		{
 			m_canvasData.fill(Array<uint8>(props.canvasSize.x * props.canvasSize.y));
 			m_colorArray = Array<Color>{props.document->width * props.document->height};
@@ -98,7 +98,7 @@ namespace
 		Array<Color> m_colorArray{};
 	};
 
-	void LayerLoader::readLayer(int index, PSDLayer& outputLayer)
+	void LayerImporter::readLayer(int index, PSDLayer& outputLayer)
 	{
 		Layer* layer = &props.layerMaskSection->layers[index];
 		ExtractLayer(props.document, props.file, props.allocator, layer);
@@ -199,33 +199,33 @@ namespace
 	}
 }
 
-struct PSDLoader::Impl
+struct PSDImporter::Impl
 {
 	Config m_config{};
 	PSDError m_error{};
 	PSDObject m_object{};
 	bool m_ready{};
 	Array<AsyncTask<void>> m_layerTasks{};
-	AsyncTask<void> m_loadTask{};
+	AsyncTask<void> m_importTask{};
 	std::atomic<int> m_nextLayer{};
 
-	void load()
+	void import()
 	{
-		if (m_config.loadAsync)
+		if (m_config.importAsync)
 		{
-			m_loadTask = Async([this]()
+			m_importTask = Async([this]()
 			{
-				loadIntenal();
+				importInternal();
 			});
 		}
 		else
 		{
-			loadIntenal();
+			importInternal();
 		}
 	}
 
 private:
-	void loadIntenal()
+	void importInternal()
 	{
 		const std::wstring srcPath = Unicode::ToWstring(m_config.filepath);
 
@@ -312,7 +312,7 @@ private:
 		// Stopwatch sw{};
 		// sw.start();
 		// Console.writeln(U"Thread {} start"_fmt(threadId));
-		LayerLoader layerReader{
+		LayerImporter layerReader{
 			{
 				.config = m_config,
 				.allocator = allocator,
@@ -335,31 +335,31 @@ private:
 
 namespace SivPSD
 {
-	PSDLoader::PSDLoader() :
+	PSDImporter::PSDImporter() :
 		p_impl(std::make_shared<Impl>())
 	{
 	}
 
-	PSDLoader::PSDLoader(const Config& config) :
+	PSDImporter::PSDImporter(const Config& config) :
 		p_impl(std::make_shared<Impl>())
 	{
 		p_impl->m_config = config;
-		p_impl->load();
+		p_impl->import();
 	}
 
-	Optional<PSDError> PSDLoader::getCriticalError() const
+	Optional<PSDError> PSDImporter::getCriticalError() const
 	{
 		return p_impl->m_error;
 	}
 
-	PSDObject PSDLoader::getObject() const
+	PSDObject PSDImporter::getObject() const
 	{
 		return p_impl->m_ready
 			       ? p_impl->m_object
 			       : PSDObject{};
 	}
 
-	bool PSDLoader::isReady() const noexcept
+	bool PSDImporter::isReady() const noexcept
 	{
 		return p_impl->m_ready;
 	}
