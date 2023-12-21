@@ -28,9 +28,11 @@ namespace SivPSD
 		[[nodiscard]]
 		Optional<PSDError> getCriticalError() const;
 
+		/// @brief 読み込んだオブジェクト
 		[[nodiscard]]
 		PSDObject getObject() const;
 
+		/// @brief 読み込みが完了しているか
 		[[nodiscard]]
 		bool isReady() const noexcept;
 

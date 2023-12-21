@@ -23,7 +23,7 @@ namespace SivPSD
 		Optional<id_type> parentId{};
 
 		/// @brief レイヤー名
-		String name;
+		String name{};
 
 		/// @brief フォルダかどうか
 		bool isFolder{};
@@ -31,10 +31,10 @@ namespace SivPSD
 		/// @brief 表示フラグ
 		bool isVisible{};
 
-		/// @brief アクセス可能画素配列
+		/// @brief アクセス可能画素配列 (読み込み時の設定によっては空になります)
 		Image image{};
 
-		/// @brief image から作られたテクスチャ
+		/// @brief image から作られたテクスチャ (読み込み時の設定によっては空になります)
 		DynamicTexture texture{};
 
 		/// @brief 読み込み時などで発生したエラー
