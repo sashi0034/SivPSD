@@ -8,7 +8,9 @@ namespace SivPSD
 	{
 		Image,
 		Texture,
+		MipmapTexture,
 		ImageAndTexture,
+		ImageAndMipmapTexture,
 	};
 
 	class PSDImporter
@@ -20,7 +22,7 @@ namespace SivPSD
 			FilePath filepath{};
 
 			/// @brief 読み込み情報の格納先
-			StoreTarget storeTarget = StoreTarget::Texture;
+			StoreTarget storeTarget = StoreTarget::MipmapTexture;
 
 			/// @brief 最大スレッド数
 			int maxThreads = 3;
