@@ -2,7 +2,7 @@ import re
 import sys
 
 switch_version = '0_6_12'
-project_name = 'ExStaticLib.vcxproj'
+project_name = 'SivPSD.vcxproj'
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
