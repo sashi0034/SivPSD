@@ -76,7 +76,6 @@ namespace
 		struct Props
 		{
 			PSDImporter::Config config;
-			MallocAllocator* allocator;
 			NativeFile* file;
 			Document* document;
 			LayerMaskSection* layerMaskSection;
@@ -94,6 +93,7 @@ namespace
 	private:
 		Props props;
 
+		MallocAllocator m_allocator{};
 		std::array<Array<uint8>, 4> m_canvasData{};
 		Array<Color> m_colorArray{};
 	};
@@ -101,7 +101,7 @@ namespace
 	void LayerImporter::readLayer(int index, PSDLayer& outputLayer)
 	{
 		Layer* layer = &props.layerMaskSection->layers[index];
-		ExtractLayer(props.document, props.file, props.allocator, layer);
+		ExtractLayer(props.document, props.file, &m_allocator, layer);
 
 		// ID情報
 		outputLayer.id = index;
@@ -288,7 +288,7 @@ private:
 			m_layerTasks.emplace_back(Async(
 				[this, allocator, file, document, layerMaskSection, canvasSize, id]()
 				{
-					extractLayersAsync(allocator, file, document, layerMaskSection, canvasSize, m_nextLayer, id);
+					extractLayersAsync(file, document, layerMaskSection, canvasSize, m_nextLayer, id);
 				}));
 		}
 
@@ -298,7 +298,6 @@ private:
 	}
 
 	void extractLayersAsync(
-		MallocAllocator* allocator,
 		NativeFile* file,
 		Document* document,
 		LayerMaskSection* layerMaskSection,
@@ -312,7 +311,6 @@ private:
 		LayerImporter layerReader{
 			{
 				.config = m_config,
-				.allocator = allocator,
 				.file = file,
 				.document = document,
 				.layerMaskSection = layerMaskSection,
