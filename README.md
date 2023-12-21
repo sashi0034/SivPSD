@@ -8,11 +8,11 @@
 
 🎨 マルチスレッドで非同期にPSDファイルを読み込むことが可能です。
 
-
 🖌 詳細は以下の記事をご覧ください。
 
    - https://sashi0034.hatenablog.com/entry/2023/12/21/191714?_gl=1*m0m8o9*_gcl_au*ODMxMjMwNTczLjE2OTkzNDE1NTY
 
+⚠️ レイヤーのマスクやクリッピングに対応していません。
 
 # サポート
 
