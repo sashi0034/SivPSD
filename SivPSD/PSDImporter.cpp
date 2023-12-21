@@ -69,6 +69,13 @@ namespace
 		return none;
 	}
 
+	TextureDesc getTextureDesc(StoreTarget storeTarget)
+	{
+		const bool hasMipmap = storeTarget == StoreTarget::MipmapTexture
+			|| storeTarget == StoreTarget::ImageAndMipmapTexture;
+		return hasMipmap ? TextureDesc::Mipped : TextureDesc::Unmipped;
+	}
+
 	// スレッドごとに作成
 	class LayerImporter
 	{
@@ -187,12 +194,14 @@ namespace
 		case StoreTarget::Image:
 			outputLayer.image = image;
 			break;
-		case StoreTarget::Texture:
-			outputLayer.texture = DynamicTexture(image);
+		case StoreTarget::Texture: [[fallthrough]];
+		case StoreTarget::MipmapTexture:
+			outputLayer.texture = DynamicTexture(image, getTextureDesc(props.config.storeTarget));
 			break;
-		case StoreTarget::ImageAndTexture:
+		case StoreTarget::ImageAndTexture: [[fallthrough]];
+		case StoreTarget::ImageAndMipmapTexture:
 			outputLayer.image = image;
-			outputLayer.texture = DynamicTexture(image);
+			outputLayer.texture = DynamicTexture(image, getTextureDesc(props.config.storeTarget));
 			break;
 		default: ;
 		}
