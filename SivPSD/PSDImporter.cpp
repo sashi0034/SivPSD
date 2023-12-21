@@ -254,15 +254,12 @@ private:
 			return;
 		}
 
-		const Size canvasSize{document->width, document->height};
-		std::array<Array<uint8>, 4> canvasData{};
-		canvasData.fill(Array<uint8>(canvasSize.x * canvasSize.y));
-		Array<Color> colorArray{document->width * document->height};
+		m_object.documentSize = {document->width, document->height};
 
 		// レイヤー情報抽出
 		if (LayerMaskSection* layerMaskSection = ParseLayerMaskSection(document, &file, &allocator))
 		{
-			extractLayers(&allocator, &file, document, layerMaskSection, canvasSize);
+			extractLayers(&allocator, &file, document, layerMaskSection, m_object.documentSize);
 
 			DestroyLayerMaskSection(layerMaskSection, &allocator);
 		}
