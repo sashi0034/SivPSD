@@ -211,7 +211,7 @@ struct PSDImporter::Impl
 
 	void import()
 	{
-		if (m_config.importAsync)
+		if (m_config.startAsync)
 		{
 			m_importTask = Async([this]()
 			{
@@ -349,7 +349,9 @@ namespace SivPSD
 
 	Optional<PSDError> PSDImporter::getCriticalError() const
 	{
-		return p_impl->m_error;
+		return p_impl->m_ready || p_impl->m_error.what().empty()
+			       ? none
+			       : Optional<PSDError>(p_impl->m_error);
 	}
 
 	PSDObject PSDImporter::getObject() const

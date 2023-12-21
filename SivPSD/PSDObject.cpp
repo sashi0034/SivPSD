@@ -28,9 +28,44 @@ namespace SivPSD
 		}
 	}
 
+	void Formatter(FormatData& formatData, const PSDObject& obj)
+	{
+		bool head = true;
+		for (auto&& layer : obj.layers)
+		{
+			if (not head) formatData.string += U'\n';
+			head = false;
+			formatData.string += Format(layer);
+		}
+	}
+
 	bool PSDLayer::isDrawable() const
 	{
 		return isVisible && not texture.isEmpty() && not isFolder;
+	}
+
+	String PSDObject::concatLayerErrors() const
+	{
+		String error{};
+		for (auto&& layer : layers)
+		{
+			if (const auto e = layer.error)
+			{
+				if (not error.empty()) error += U'\n';
+				error += Format(layer) + U" \""_sv + e->what() + U'\"';
+			}
+		}
+		return error;
+	}
+
+	Array<std::pair<PSDLayer::id_type, PSDError>> PSDObject::getLayerErrors() const
+	{
+		Array<std::pair<PSDLayer::id_type, PSDError>> errors{};
+		for (auto&& layer : layers)
+		{
+			if (const auto e = layer.error) errors.push_back({layer.id, e.value()});
+		}
+		return errors;
 	}
 
 	const PSDObject& PSDObject::draw(const Vec2& pos) const

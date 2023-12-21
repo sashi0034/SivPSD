@@ -52,7 +52,18 @@ namespace SivPSD
 		Size documentSize{};
 		Array<PSDLayer> layers{};
 
+		/// @brief レイヤーに含まれているすべてのエラーを統合し文字列にして返します
+		String concatLayerErrors() const;
+
+		/// @brief レイヤーに含まれているすべてのエラーをレイヤーIDとともに配列として返します
+		Array<std::pair<PSDLayer::id_type, PSDError>> getLayerErrors() const;
+
+		/// @brief isDrawable() が true のレイヤーを描画
 		const PSDObject& draw(const Vec2& pos = Vec2{}) const;
+
+		/// @brief isDrawable() が true のレイヤーを描画
 		const PSDObject& drawAt(const Vec2& pos = Vec2{}) const;
+
+		friend void Formatter(FormatData& formatData, const PSDObject& obj);
 	};
 }

@@ -15,10 +15,17 @@ namespace SivPSD
 	public:
 		struct Config
 		{
+			/// @brief 読み込むファイルパス
 			FilePath filepath{};
+
+			/// @brief 読み込み情報の格納先
 			StoreTarget storeTarget = StoreTarget::Texture;
+
+			/// @brief 最大スレッド数
 			int maxThreads = 1;
-			bool importAsync = false;
+
+			/// @brief 非同期にするか
+			bool startAsync = false;
 		};
 
 		PSDImporter();

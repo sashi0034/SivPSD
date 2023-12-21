@@ -17,7 +17,7 @@ void Main()
 			.filepath = U"psd/miko15.psd",
 			.storeTarget = StoreTarget::Texture,
 			.maxThreads = 4,
-			.importAsync = true
+			.startAsync = true
 		}
 	};
 	auto psdObject = psdImporter.getObject();
@@ -39,7 +39,20 @@ void Main()
 		ClearPrint();
 		if (psdObject.layers.size() == 0)
 		{
-			if (psdImporter.isReady()) psdObject = psdImporter.getObject();
+			if (psdImporter.isReady())
+			{
+				Console.writeln(U"Import done");
+				Console.writeln(U"---");
+				if (const auto e = psdImporter.getCriticalError())
+				{
+					Console.writeln(U"Importer error: " + e->what());
+					Console.writeln(U"---");
+				}
+				psdObject = psdImporter.getObject();
+				Console.writeln(U"Layer errors: " + psdObject.concatLayerErrors());
+				Console.writeln(U"---");
+				Console.writeln(psdObject);
+			}
 			Print(U"Waiting...");
 			continue;
 		}
