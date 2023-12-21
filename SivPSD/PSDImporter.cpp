@@ -332,8 +332,13 @@ private:
 
 namespace SivPSD
 {
-	PSDImporter::PSDImporter() :
-		p_impl(std::make_shared<Impl>())
+	PSDImporter::PSDImporter() : PSDImporter(Config())
+	{
+	}
+
+	PSDImporter::PSDImporter(const FilePath& filepath) : PSDImporter(Config{
+		.filepath = filepath
+	})
 	{
 	}
 

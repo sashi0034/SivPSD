@@ -3,6 +3,24 @@
 
 using namespace SivPSD;
 
+namespace
+{
+	void writePsdSummary(const PSDImporter& psdImporter, const PSDObject& psdObject, Stopwatch& sw)
+	{
+		sw.pause();
+		Console.writeln(U"Import done: {}"_fmt(sw.sF()));
+		Console.writeln(U"---");
+		if (const auto e = psdImporter.getCriticalError())
+		{
+			Console.writeln(U"Importer error: " + e->what());
+			Console.writeln(U"---");
+		}
+		Console.writeln(U"Layer errors: " + psdObject.concatLayerErrors());
+		Console.writeln(U"---");
+		Console.writeln(psdObject);
+	}
+}
+
 void Main()
 {
 	Window::SetTitle(U"SivPSD Test");
@@ -10,8 +28,7 @@ void Main()
 	Window::Resize(1280, 720);
 	Scene::SetBackground(ColorF{0.3});
 
-	Stopwatch sw{};
-	sw.start();
+	Stopwatch sw{StartImmediately::Yes};
 	PSDImporter psdImporter{
 		{
 			.filepath = U"psd/miko15.psd",
@@ -20,68 +37,64 @@ void Main()
 			.startAsync = true
 		}
 	};
+
+	// 読み込みオブジェクト格納先
 	auto psdObject = psdImporter.getObject();
-	sw.pause();
-	Console.writeln(U"Passed: {}"_fmt(sw.sF()));
 
-	int mode = 0;
-	int textureIndex = 0;
+	Camera2D camera2D{};
 
-	Camera2D camera2D{psdObject.documentSize / 2};
-
-	for (auto&& o : psdObject.layers)
-	{
-		Console.writeln(Format(o));
-	}
+	bool loading = true; // 読み込み中
+	bool showAll = true; // 全レイヤー表示
+	double layerCursor{}; // 全レイヤー表示じゃないときに表示するレイヤーのカーソル
 
 	while (System::Update())
 	{
-		ClearPrint();
-		if (psdObject.layers.size() == 0)
+		if (loading)
 		{
-			if (psdImporter.isReady())
+			// 読込中...
+			if (not psdImporter.isReady())
 			{
-				Console.writeln(U"Import done");
-				Console.writeln(U"---");
-				if (const auto e = psdImporter.getCriticalError())
-				{
-					Console.writeln(U"Importer error: " + e->what());
-					Console.writeln(U"---");
-				}
-				psdObject = psdImporter.getObject();
-				Console.writeln(U"Layer errors: " + psdObject.concatLayerErrors());
-				Console.writeln(U"---");
-				Console.writeln(psdObject);
+				// まだ読み込んでない
+				SimpleGUI::Headline(U"Loading...", Vec2{0, 50});
+				continue;
 			}
-			Print(U"Waiting...");
-			continue;
+
+			// 完了
+			loading = false;
+			psdObject = psdImporter.getObject();
+			writePsdSummary(psdImporter, psdObject, sw);
+			camera2D.jumpTo(Rect(psdObject.documentSize).topCenter().movedBy(0, psdObject.documentSize.y / 4), 0.5);
 		}
+
+		// 全レイヤー表示じゃないときに表示するレイヤーID
+		const auto showingLayer =
+			std::min(static_cast<size_t>(layerCursor * psdObject.layers.size()), (psdObject.layers.size() - 1));
 
 		camera2D.update();
 		{
+			// PSD描画
 			Transformer2D t{camera2D.createTransformer()};
 
-			switch (mode)
+			Rect(psdObject.documentSize).stretched(1).drawFrame(2, Palette::Black);
+
+			if (showAll)
 			{
-			case 0:
-				if (MouseL.down())
-				{
-					textureIndex = (textureIndex + 1) % psdObject.layers.size();
-				}
-				(void)psdObject.layers[textureIndex].texture.draw();
-				break;
-			case 1:
 				psdObject.draw();
-				break;
-			default:
-				break;
+			}
+			else
+			{
+				psdObject.layers[showingLayer].texture.draw();
 			}
 		}
 
-		SimpleGUI::Headline(U"Mode: {}"_fmt(mode), Rect(Scene::Size()).tr().movedBy(-150, 50));
-		SimpleGUI::Headline(U"All layers: {}"_fmt(
-			                    psdObject.layers.size()), Rect(Scene::Size()).tr().movedBy(-150, 100));
-
-		if (MouseR.down()) mode = (mode + 1) % 2;
+		// GUI
+		SimpleGUI::Headline(U"Completed!", Vec2{0, 50});
+		const auto sceneTr = Rect(Scene::Size()).tr();
+		SimpleGUI::CheckBox(showAll, U"Show all", sceneTr.movedBy(-300, 50));
+		if (not showAll && psdObject.layers.size() > 0)
+		{
+			SimpleGUI::Slider(U"Show: {}"_fmt(showingLayer), layerCursor, sceneTr.movedBy(-300, 100), 100, 200);
+			SimpleGUI::Headline(Format(psdObject.layers[showingLayer]), sceneTr.movedBy(-300, 150));
+		}
 	}
 }
