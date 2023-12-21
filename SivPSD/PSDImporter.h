@@ -23,7 +23,7 @@ namespace SivPSD
 			StoreTarget storeTarget = StoreTarget::Texture;
 
 			/// @brief 最大スレッド数
-			int maxThreads = 1;
+			int maxThreads = 3;
 
 			/// @brief 非同期にするか
 			bool startAsync = false;
