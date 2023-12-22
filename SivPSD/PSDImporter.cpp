@@ -118,13 +118,13 @@ namespace
 		Image storeImageWithoutMargin(const Array<Color>& colorArray, Point imageTl, Size imageSize) const
 		{
 			Image image(imageSize);
-			for (int x = 0; x < imageSize.x; ++x)
+			auto dest = image.data();
+			auto src = colorArray.data() + imageTl.y * props.canvasSize.x + imageTl.x;
+			for (int y = 0; y < imageSize.y; ++y)
 			{
-				for (int y = 0; y < imageSize.y; ++y)
-				{
-					image.data()[x + y * imageSize.x] =
-						colorArray[(y + imageTl.y) * props.canvasSize.x + imageTl.x + x];
-				}
+				memcpy(dest, src, imageSize.x * sizeof(Color));
+				dest += imageSize.x;
+				src += props.canvasSize.x;
 			}
 			return image;
 		}
