@@ -31,6 +31,9 @@ namespace SivPSD
 		/// @brief 表示フラグ
 		bool isVisible{};
 
+		/// @brief ドキュメント内レイヤー領域
+		Rect region{};
+
 		/// @brief アクセス可能画素配列 (読み込み時の設定によっては空になります)
 		Image image{};
 
@@ -42,6 +45,9 @@ namespace SivPSD
 
 		/// @brief isVisible が true でテクスチャを持ったレイヤーか
 		bool isDrawable() const;
+
+		[[nodiscard]]
+		Point tl() const;
 
 		friend void Formatter(FormatData& formatData, const PSDLayer& layer);
 	};

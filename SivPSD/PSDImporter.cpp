@@ -76,6 +76,23 @@ namespace
 		return hasMipmap ? TextureDesc::Mipped : TextureDesc::Unmipped;
 	}
 
+	bool isTextureStore(StoreTarget storeTarget)
+	{
+		return storeTarget != StoreTarget::Image;
+	}
+
+	Point getLayerTopLeft(const Layer& layer)
+	{
+		return Math::Max(Point{layer.left, layer.top}, Point{});
+	}
+
+	Size getLayerSize(const Layer& layer, Size documentSize)
+	{
+		const auto imageTl = getLayerTopLeft(layer);
+		const auto imageBr = Math::Min(Point{layer.right, layer.bottom}, documentSize);
+		return imageBr - imageTl;
+	}
+
 	// スレッドごとに作成
 	class LayerImporter
 	{
@@ -98,6 +115,20 @@ namespace
 		void readLayer(int index, PSDLayer& outputLayer);
 
 	private:
+		Image storeImageWithoutMargin(const Array<Color>& colorArray, Point imageTl, Size imageSize) const
+		{
+			Image image(imageSize);
+			auto dest = image.data();
+			auto src = colorArray.data() + imageTl.y * props.canvasSize.x + imageTl.x;
+			for (int y = 0; y < imageSize.y; ++y)
+			{
+				memcpy(dest, src, imageSize.x * sizeof(Color));
+				dest += imageSize.x;
+				src += props.canvasSize.x;
+			}
+			return image;
+		}
+
 		Props props;
 
 		MallocAllocator m_allocator{};
@@ -132,7 +163,7 @@ namespace
 		std::wstringstream layerName;
 		if (layer->utf16Name)
 		{
-			static_assert(sizeof(wchar_t) == sizeof(uint16)); //In Windows wchar_t is utf16
+			static_assert(sizeof(wchar_t) == sizeof(uint16)); // In Windows wchar_t is utf16
 			layerName << reinterpret_cast<wchar_t*>(layer->utf16Name);
 		}
 		else
@@ -175,8 +206,19 @@ namespace
 			props.canvasSize.x, props.canvasSize.y);
 
 		// 配列変換
-		const Grid<Color> colorData{props.document->width, props.document->height, m_colorArray};
-		const auto image = Image(colorData);
+		const auto imageTl = getLayerTopLeft(*layer);
+		const auto imageSize = getLayerSize(*layer, props.canvasSize);
+		Image image;
+		if (props.config.marginRemove)
+		{
+			outputLayer.region = Rect(imageTl, imageSize);
+			image = storeImageWithoutMargin(m_colorArray, imageTl, imageSize);
+		}
+		else
+		{
+			outputLayer.region = Rect(props.canvasSize);
+			image = Image(Grid{props.canvasSize, m_colorArray});
+		}
 
 		if (layer->layerMask)
 		{
@@ -214,13 +256,13 @@ struct PSDImporter::Impl
 	PSDError m_error{};
 	PSDObject m_object{};
 	bool m_ready{};
-	Array<AsyncTask<void>> m_layerTasks{};
+	Array<AsyncTask<void>> m_threadTasks{};
 	AsyncTask<void> m_importTask{};
 	std::atomic<int> m_nextLayer{};
 
 	void import()
 	{
-		if (m_config.startAsync)
+		if (m_config.asyncStart)
 		{
 			m_importTask = Async([this]()
 			{
@@ -254,7 +296,6 @@ private:
 			file.Close();
 			return;
 		}
-
 		if (document->colorMode != colorMode::RGB)
 		{
 			m_error = PSDError(U"Document is not in RGB color mode.");
@@ -294,7 +335,7 @@ private:
 		// スレッドごとにレイヤー処理
 		for (int id = 0; id < std::min(m_config.maxThreads, layerCount); ++id)
 		{
-			m_layerTasks.emplace_back(Async(
+			m_threadTasks.emplace_back(Async(
 				[this, allocator, file, document, layerMaskSection, canvasSize, id]()
 				{
 					extractLayersAsync(file, document, layerMaskSection, canvasSize, m_nextLayer, id);
@@ -302,7 +343,7 @@ private:
 		}
 
 		// 終了チェック
-		for (auto&& t : m_layerTasks) t.wait();
+		for (auto&& t : m_threadTasks) t.wait();
 		m_ready = true;
 	}
 

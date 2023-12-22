@@ -66,7 +66,7 @@ void Main1()
 			else
 			{
 				// レイヤー単体を描画
-				psdObject.layers[showingLayer].texture.draw();
+				psdObject.layers[showingLayer].texture.draw(psdObject.layers[showingLayer].tl());
 			}
 		}
 
