@@ -28,7 +28,10 @@ namespace SivPSD
 			int maxThreads = 3;
 
 			/// @brief 非同期にするか
-			bool startAsync = false;
+			bool asyncStart = false;
+
+			/// @brief レイヤーの余白を除くか ( false の場合、すべてのレイヤーが同じサイズ になります )
+			bool marginRemove = true;
 		};
 
 		PSDImporter();

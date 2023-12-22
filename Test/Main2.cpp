@@ -35,7 +35,8 @@ void Main2()
 			.filepath = U"psd/miko15.psd",
 			.storeTarget = StoreTarget::MipmapTexture,
 			.maxThreads = 4,
-			.startAsync = true
+			.asyncStart = true,
+			.marginRemove = true,
 		}
 	};
 

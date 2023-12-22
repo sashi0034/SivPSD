@@ -115,6 +115,20 @@ namespace
 		void readLayer(int index, PSDLayer& outputLayer);
 
 	private:
+		Image storeImageWithoutMargin(const Array<Color>& colorArray, Point imageTl, Size imageSize) const
+		{
+			Image image(imageSize);
+			for (int x = 0; x < imageSize.x; ++x)
+			{
+				for (int y = 0; y < imageSize.y; ++y)
+				{
+					image.data()[x + y * imageSize.x] =
+						colorArray[(y + imageTl.y) * props.canvasSize.x + imageTl.x + x];
+				}
+			}
+			return image;
+		}
+
 		Props props;
 
 		MallocAllocator m_allocator{};
@@ -194,14 +208,16 @@ namespace
 		// 配列変換
 		const auto imageTl = getLayerTopLeft(*layer);
 		const auto imageSize = getLayerSize(*layer, props.canvasSize);
-		outputLayer.region = Rect(imageTl, imageSize);
-		auto image = Image(imageSize);
-		for (int x = 0; x < imageSize.x; ++x)
+		Image image;
+		if (props.config.marginRemove)
 		{
-			for (int y = 0; y < imageSize.y; ++y)
-			{
-				image.data()[x + y * imageSize.x] = m_colorArray[(y + imageTl.y) * props.canvasSize.x + imageTl.x + x];
-			}
+			outputLayer.region = Rect(imageTl, imageSize);
+			image = storeImageWithoutMargin(m_colorArray, imageTl, imageSize);
+		}
+		else
+		{
+			outputLayer.region = Rect(props.canvasSize);
+			image = Image(Grid{props.canvasSize, m_colorArray});
 		}
 
 		if (layer->layerMask)
@@ -246,7 +262,7 @@ struct PSDImporter::Impl
 
 	void import()
 	{
-		if (m_config.startAsync)
+		if (m_config.asyncStart)
 		{
 			m_importTask = Async([this]()
 			{
