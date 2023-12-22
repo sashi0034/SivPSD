@@ -76,6 +76,11 @@ namespace
 		return hasMipmap ? TextureDesc::Mipped : TextureDesc::Unmipped;
 	}
 
+	bool isTextureStore(StoreTarget storeTarget)
+	{
+		return storeTarget == StoreTarget::Image;
+	}
+
 	// スレッドごとに作成
 	class LayerImporter
 	{
@@ -196,12 +201,12 @@ namespace
 			break;
 		case StoreTarget::Texture: [[fallthrough]];
 		case StoreTarget::MipmapTexture:
-			outputLayer.texture = DynamicTexture(image, getTextureDesc(props.config.storeTarget));
+			outputLayer.texture.fill(image);
 			break;
 		case StoreTarget::ImageAndTexture: [[fallthrough]];
 		case StoreTarget::ImageAndMipmapTexture:
 			outputLayer.image = image;
-			outputLayer.texture = DynamicTexture(image, getTextureDesc(props.config.storeTarget));
+			outputLayer.texture.fill(image);
 			break;
 		default: ;
 		}
@@ -214,71 +219,84 @@ struct PSDImporter::Impl
 	PSDError m_error{};
 	PSDObject m_object{};
 	bool m_ready{};
-	Array<AsyncTask<void>> m_layerTasks{};
+	Array<AsyncTask<void>> m_threadTasks{};
 	AsyncTask<void> m_importTask{};
 	std::atomic<int> m_nextLayer{};
 
 	void import()
 	{
-		if (m_config.startAsync)
-		{
-			m_importTask = Async([this]()
-			{
-				importInternal();
-			});
-		}
-		else
-		{
-			importInternal();
-		}
-	}
-
-private:
-	void importInternal()
-	{
 		const std::wstring srcPath = Unicode::ToWstring(m_config.filepath);
 
-		MallocAllocator allocator;
-		NativeFile file(&allocator);
+		auto allocator = std::make_unique<MallocAllocator>();
+		auto file = std::make_unique<NativeFile>(allocator.get());
 
-		if (not file.OpenRead(srcPath.c_str()))
+		if (not file->OpenRead(srcPath.c_str()))
 		{
 			m_error = PSDError(U"Cannot open file.");
 			return;
 		}
 
-		Document* document = CreateDocument(&file, &allocator);
+		Document* document = CreateDocument(file.get(), allocator.get());
 		if (not document)
 		{
 			m_error = PSDError(U"Cannot create document.");
-			file.Close();
+			file->Close();
 			return;
 		}
-
 		if (document->colorMode != colorMode::RGB)
 		{
 			m_error = PSDError(U"Document is not in RGB color mode.");
-			DestroyDocument(document, &allocator);
-			file.Close();
+			DestroyDocument(document, allocator.get());
+			file->Close();
+			return;
+		}
+
+		LayerMaskSection* layerMaskSection = ParseLayerMaskSection(document, file.get(), allocator.get());
+		if (not layerMaskSection)
+		{
+			m_error = PSDError(U"Layers and masks are missing.");
+			DestroyDocument(document, allocator.get());
+			file->Close();
 			return;
 		}
 
 		m_object.documentSize = {document->width, document->height};
+		const int layerCount = layerMaskSection->layerCount;
+		m_object.layers.resize(layerCount);
+		reserveTextures(layerCount);
 
-		// レイヤー情報抽出
-		if (LayerMaskSection* layerMaskSection = ParseLayerMaskSection(document, &file, &allocator))
+		// 非同期実行可能なタスク
+		auto heavyTask =
+			[this, allocator = std::move(allocator), file = std::move(file), document, layerMaskSection]() mutable
 		{
-			extractLayers(&allocator, &file, document, layerMaskSection, m_object.documentSize);
+			extractLayers(allocator.get(), file.get(), document, layerMaskSection, m_object.documentSize);
+			DestroyLayerMaskSection(layerMaskSection, allocator.get());
+			DestroyDocument(document, allocator.get());
+			file->Close();
+		};
 
-			DestroyLayerMaskSection(layerMaskSection, &allocator);
+		if (m_config.startAsync)
+		{
+			m_importTask = Async([this, heavyTask = std::move(heavyTask)]() mutable
+			{
+				heavyTask();
+			});
 		}
 		else
 		{
-			m_error = PSDError(U"Layers and masks are missing.");
+			heavyTask();
 		}
+	}
 
-		DestroyDocument(document, &allocator);
-		file.Close();
+private:
+	void reserveTextures(const int layerCount)
+	{
+		if (not isTextureStore(m_config.storeTarget)) return;
+		for (int i = 0; i < layerCount; ++i)
+		{
+			m_object.layers[i].texture = DynamicTexture(
+				m_object.documentSize, TextureFormat::R8G8B8A8_Unorm, getTextureDesc(m_config.storeTarget));
+		}
 	}
 
 	void extractLayers(
@@ -289,12 +307,11 @@ private:
 		const Size& canvasSize)
 	{
 		const int layerCount = layerMaskSection->layerCount;
-		m_object.layers.resize(layerCount);
 
 		// スレッドごとにレイヤー処理
 		for (int id = 0; id < std::min(m_config.maxThreads, layerCount); ++id)
 		{
-			m_layerTasks.emplace_back(Async(
+			m_threadTasks.emplace_back(Async(
 				[this, allocator, file, document, layerMaskSection, canvasSize, id]()
 				{
 					extractLayersAsync(file, document, layerMaskSection, canvasSize, m_nextLayer, id);
@@ -302,7 +319,7 @@ private:
 		}
 
 		// 終了チェック
-		for (auto&& t : m_layerTasks) t.wait();
+		for (auto&& t : m_threadTasks) t.wait();
 		m_ready = true;
 	}
 
