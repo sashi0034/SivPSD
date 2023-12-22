@@ -44,6 +44,11 @@ namespace SivPSD
 		return isVisible && not texture.isEmpty() && not isFolder;
 	}
 
+	Point PSDLayer::tl() const
+	{
+		return region.tl();
+	}
+
 	String PSDObject::concatLayerErrors() const
 	{
 		String error{};
@@ -72,7 +77,7 @@ namespace SivPSD
 	{
 		for (auto&& layer : layers)
 		{
-			if (layer.isDrawable()) (void)layer.texture.draw(pos);
+			if (layer.isDrawable()) (void)layer.texture.draw(layer.tl());
 		}
 		return *this;
 	}

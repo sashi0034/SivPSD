@@ -33,7 +33,7 @@ void Main2()
 	PSDImporter psdImporter{
 		{
 			.filepath = U"psd/miko15.psd",
-			.storeTarget = StoreTarget::Texture,
+			.storeTarget = StoreTarget::MipmapTexture,
 			.maxThreads = 4,
 			.startAsync = true
 		}
@@ -86,7 +86,7 @@ void Main2()
 			else
 			{
 				// レイヤー単体を描画
-				psdObject.layers[showingLayer].texture.draw();
+				psdObject.layers[showingLayer].texture.draw(psdObject.layers[showingLayer].tl());
 			}
 		}
 
